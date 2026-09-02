@@ -385,16 +385,23 @@ td.num{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums}
 .ver-seg{width:auto;flex:none}
 .ver-seg button{font-family:"Instrument Sans",sans-serif;font-weight:700;padding:0.25rem 0.75rem}
 
-.brand-pick{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.625rem;
-  border:1px solid var(--line-2);border-radius:var(--radius-sm);background:var(--raised)}
-.bp-sw{width:1.75rem;height:1.75rem;border-radius:0.3125rem;flex:none;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .18)}
-.bp-txt{font-size:0.75rem;color:var(--ink-3);display:flex;flex-direction:column;line-height:1.3}
-.bp-txt b{font-family:"JetBrains Mono",monospace;font-size:0.8125rem;color:var(--ink);font-weight:500}
-.bp-txt em{font-style:normal;color:var(--ink-3)}
-
 
 .chip.is-anchor{box-shadow:inset 0 0 0 3px var(--ink), inset 0 0 0 5px rgb(255 255 255 / .55)}
 .anchor-flag{font-size:0.6875rem;font-weight:700;letter-spacing:.06em}
+
+.a11y-bar{
+  display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;
+  padding:0.75rem 1rem;border-bottom:1px solid var(--line);
+  background:var(--raised);
+}
+.a11y-dot{width:0.5rem;height:0.5rem;border-radius:50%;flex:none;background:var(--pass)}
+.a11y-bar.is-warn .a11y-dot{background:var(--fail)}
+.a11y-txt{font-size:0.8125rem;color:var(--ink-2)}
+.a11y-txt b{color:var(--ink);font-weight:700}
+.a11y-fix{margin-left:auto;font-size:0.8125rem;padding:0.4375rem 0.75rem}
+.a11y-bar.is-ok .a11y-fix{display:none}
+tbody tr.row-fail td{background:color-mix(in oklab, var(--fail) 12%, transparent)}
+tbody tr.row-fail td:first-child{background:color-mix(in oklab, var(--fail) 12%, var(--surface))}
 
 /* ---- gamut advisor ---- */
 .advisor{
@@ -541,10 +548,6 @@ td.copyable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
         <input type="color" id="seedPicker" value="#3b82f6" aria-label="Seed colour picker">
         <input type="text" id="seedHex" value="#3b82f6" spellcheck="false" aria-label="Seed hex value">
       </div>
-      <div class="brand-pick" id="brandPick" hidden>
-        <span class="bp-sw" id="bpSw"></span>
-        <span class="bp-txt">Your pick <b id="bpHex">—</b><em id="bpNote"></em></span>
-      </div>
       <div class="btn-row">
         <button type="button" class="ghost" id="randomBtn">Randomise</button>
         <button type="button" class="ghost" id="optimiseBtn">Optimise</button>
@@ -557,14 +560,8 @@ td.copyable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
         <p class="legend">Steps</p>
         <span class="readout" id="stepReadout">11 shades</span>
       </div>
-      <div class="seg" role="group" aria-label="Step count presets">
-        <button type="button" data-steps="5">5</button>
-        <button type="button" data-steps="9">9</button>
-        <button type="button" data-steps="11">11</button>
-        <button type="button" data-steps="16">16</button>
-        <button type="button" data-steps="24">24</button>
-      </div>
-      <input type="number" id="stepCount" min="2" max="50" step="1" value="11" aria-label="Custom step count">
+      <input type="number" id="stepCount" min="2" max="50" step="1" value="11"
+             placeholder="How many shades? e.g. 11" aria-label="Number of shades">
       <p class="hint">Any count from 2 to 50. Labels always span <code>50</code>&nbsp;→&nbsp;<code>950</code>.</p>
     </div>
 
@@ -592,12 +589,12 @@ td.copyable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
         <div class="track-note"><span>sRGB ceiling</span><span id="hueCeil">—</span></div>
       </div>
       <div class="slider-row">
-        <label class="slider-label" for="hueShift">Hue shift across ramp <b><span id="hueShiftVal">0</span>°</b></label>
-        <input type="range" id="hueShift" min="-40" max="40" step="1" value="0">
+        <label class="slider-label" for="hueShift">Hue shift end to end <b><span id="hueShiftVal">0</span>°</b></label>
+        <input type="range" id="hueShift" min="-60" max="60" step="1" value="0">
       </div>
       <div class="warnline" id="driftWarn" hidden>
         <span aria-hidden="true">▲</span>
-        <span>Hue spread is <b id="driftAmt">0</b>° across the ramp. Above 10° the drift becomes visible — the ramp will read as two different hues at its ends.</span>
+        <span>Hue shifts <b id="driftAmt">0</b>° from one end of the ramp to the other. Above 10° the drift becomes visible — the ramp will read as two different hues at its ends.</span>
       </div>
 
       <div class="advisor is-ok" id="advisor">
@@ -672,6 +669,11 @@ td.copyable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
         <label class="readout" style="display:flex;gap:6px;align-items:center;cursor:pointer">
           <input type="checkbox" id="aaaMode"> AAA (7:1) instead of AA
         </label>
+      </div>
+      <div class="a11y-bar" id="a11yBar">
+        <span class="a11y-dot" id="a11yDot"></span>
+        <span class="a11y-txt" id="a11yTxt">—</span>
+        <button type="button" class="primary a11y-fix" id="a11yFix">Make every step accessible</button>
       </div>
       <div class="table-scroll">
         <table id="dataTable">
@@ -908,7 +910,8 @@ const DEFAULTS = {
   active: 0,
   copyFmt: 'oklch',
   uiScale: 1.15,
-  version: 'v2',
+  version: 'v1',
+  a11y: false,
   bar: 7,
   custom: '#f7f7f5',
   customRole: 'text',
@@ -934,7 +937,7 @@ const active = () => S.palettes[S.active];
    5. GENERATION
    ============================================================ */
 function buildRamp(pal){
-  if (S.version === 'v2') return buildRampV2(pal);
+  if (S.version === 'v2') return S.a11y ? makeAccessible(buildRampV2(pal), pal) : buildRampV2(pal);
   const labels = stepLabels(S.steps);
   const n = labels.length;
   const maxL = Math.min(0.95, pal.seedL + S.delta);
@@ -945,7 +948,7 @@ function buildRamp(pal){
     const t = n === 1 ? 0.5 : i / (n - 1);
     const L = maxL - (maxL - minL) * t;
     // hue shift is distributed symmetrically about the ramp's centre
-    const H = (pal.hue + S.hueShift * (t - 0.5) * 2 + 360) % 360;
+    const H = (pal.hue + S.hueShift * (t - 0.5) + 360) % 360;
     const mc = maxChroma(L, H);
     const C = mc * (S.chromaPct / 100);
     const rgb = oklchToRgb(L, C, H);
@@ -969,7 +972,49 @@ function buildRamp(pal){
       inGamut: inSrgb(oklchToRgb(L, C, H))
     });
   }
-  return rows;
+  return S.a11y ? makeAccessible(rows, pal) : rows;
+}
+
+/* ============================================================
+   5z. ACCESSIBLE LADDER
+   A colour can carry text only if white OR black clears the bar on it.
+   At AAA there is a band of lightness where neither does, so any step
+   landing in it is unusable for text. These helpers find that band for
+   the actual hue and chroma, and redistribute the ladder around it.
+   ============================================================ */
+const dzCache = new Map();
+function deadZoneFor(H, scale, bar){
+  const key = Math.round(H*2)/2 + ':' + Math.round(scale*100) + ':' + bar;
+  if (dzCache.has(key)) return dzCache.get(key);
+  let darkMax = 0, lightMin = 1;
+  for (let L = 0.02; L < 0.99; L += 0.002){
+    const rgb = to255(oklchToRgb(L, maxChroma(L, H) * scale, H));
+    if (wcag(WHITE, rgb) >= bar) darkMax = Math.max(darkMax, L);
+    if (wcag(BLACK, rgb) >= bar) lightMin = Math.min(lightMin, L);
+  }
+  const v = (lightMin - darkMax) > 0.005 ? { lo: darkMax, hi: lightMin } : null;
+  dzCache.set(key, v);
+  return v;
+}
+
+/** Re-space a descending lightness list so no value sits in the dead band. */
+function skipDeadZone(Ls, H, scale, bar){
+  const dz = deadZoneFor(H, scale, bar);
+  if (!dz) return Ls;
+  // step just inside each safe band: landing exactly on the edge fails by a
+  // rounding margin, which is what a boundary step used to do.
+  const M = 0.008;
+  const top = Math.max(...Ls), bot = Math.min(...Ls);
+  const hiLo = Math.max(dz.hi + M, bot), hiHi = top;
+  const loLo = bot, loHi = Math.min(dz.lo - M, top);
+  const wHi = Math.max(0, hiHi - hiLo), wLo = Math.max(0, loHi - loLo);
+  const total = wHi + wLo;
+  if (total <= 0) return Ls;
+  const n = Ls.length;
+  return Ls.map((_, i) => {
+    const d = (n === 1 ? 0.5 : i/(n-1)) * total;
+    return d <= wHi ? hiHi - d : loHi - (d - wHi);
+  });
 }
 
 /* ============================================================
@@ -982,12 +1027,13 @@ function buildRamp(pal){
 const V2_TOP = 0.97, V2_BOTTOM = 0.18, V2_BALANCE = 0.55;
 const anchorCache = new Map();
 
-function anchorFor(H, bar){
-  const key = Math.round(H*2)/2 + ':' + bar;
+function anchorFor(H, bar, scale){
+  scale = scale == null ? 1 : scale;
+  const key = Math.round(H*2)/2 + ':' + bar + ':' + Math.round(scale*100);
   if (anchorCache.has(key)) return anchorCache.get(key);
   let best = null;
   for (let L = 0.06; L <= 0.94; L += 0.002){
-    const c = maxChroma(L, H);
+    const c = maxChroma(L, H) * scale;
     if (c <= 0) continue;
     const rgb = to255(oklchToRgb(L, c, H));
     const ww = wcag(WHITE, rgb), wk = wcag(BLACK, rgb);
@@ -1002,7 +1048,7 @@ function anchorFor(H, bar){
   // last resort: relax the balance rule rather than fail outright
   if (!best){
     for (let L = 0.06; L <= 0.94; L += 0.002){
-      const c = maxChroma(L, H);
+      const c = maxChroma(L, H) * scale;
       const rgb = to255(oklchToRgb(L, c, H));
       const ww = wcag(WHITE, rgb), wk = wcag(BLACK, rgb), pass = Math.max(ww, wk);
       if (pass >= bar && (!best || c > best.C))
@@ -1024,7 +1070,7 @@ function buildRampV2(pal){
   const labels = stepLabels(S.steps);
   const n = labels.length;
   const ai = anchorIndex(labels);
-  const A = anchorFor(pal.hue, S.bar);
+  const A = anchorFor(pal.hue, S.bar, S.chromaPct/100);
   const rows = [];
 
   for (let i = 0; i < n; i++){
@@ -1032,22 +1078,23 @@ function buildRampV2(pal){
     let L;
     if (n === 1) L = A.L;
     else if (i === ai) L = A.L;
-    else if (i < ai)  L = V2_TOP - (V2_TOP - A.L) * (ai ? i/ai : 0);
-    else              L = A.L - (A.L - V2_BOTTOM) * ((i-ai) / (n-1-ai));
+    else {
+      // spread pulls both ends in toward the anchor; 500 never moves
+      const reach = Math.max(0.05, Math.min(1, S.delta / 0.45));
+      const top = A.L + (V2_TOP - A.L) * reach;
+      const bot = A.L - (A.L - V2_BOTTOM) * reach;
+      L = i < ai ? top - (top - A.L) * (ai ? i/ai : 0)
+                 : A.L - (A.L - bot) * ((i-ai) / (n-1-ai));
+    }
 
     const t = n === 1 ? 0.5 : i/(n-1);
-    const H = (pal.hue + S.hueShift * (t - 0.5) * 2 + 360) % 360;
+    const H = (pal.hue + S.hueShift * (t - 0.5) + 360) % 360;
 
-    // chroma peaks at exactly 100% of the ceiling on the anchor step
-    let frac;
-    if (i === ai) frac = 1;
-    else if (i < ai) frac = 0.26 + 0.74 * Math.pow(ai ? i/ai : 1, 1.15);
-    else             frac = 1 - 0.45 * Math.pow((i-ai)/(n-1-ai), 1.15);
-
+    // One chroma fraction for the whole ramp. The anchor keeps its contrast
+    // guarantee because its lightness was chosen for this exact fraction, not
+    // by forcing its chroma up — which used to make 500 spike out of the ramp.
     const mc = maxChroma(L, H);
-    // The anchor is pinned to the full ceiling: its contrast guarantee was proved
-    // at that exact chroma, so scaling it down here would silently break the bar.
-    const C = (i === ai) ? mc : mc * frac * (S.chromaPct/100);
+    const C = mc * (S.chromaPct/100);
     const rgb255 = to255(oklchToRgb(L, C, H));
     const hex = hexOf(rgb255);
     const lcW = apca(WHITE, rgb255), lcB = apca(BLACK, rgb255);
@@ -1063,6 +1110,24 @@ function buildRampV2(pal){
     });
   }
   return rows;
+}
+
+/** Rebuild a ramp with every step guaranteed to carry text. */
+function makeAccessible(rows, pal){
+  const Ls = skipDeadZone(rows.map(r => r.L), pal.hue, S.chromaPct/100, S.bar);
+  return rows.map((r, i) => {
+    const L = Ls[i], H = r.H;
+    const C = maxChroma(L, H) * (S.chromaPct/100);
+    const rgb255 = to255(oklchToRgb(L, C, H));
+    const lcW = apca(WHITE, rgb255), lcB = apca(BLACK, rgb255);
+    return Object.assign({}, r, {
+      L, C, maxC: maxChroma(L, H), hex: hexOf(rgb255), rgb255,
+      oklch: oklchStr(L, C, H), lcW, lcB,
+      wW: wcag(WHITE, rgb255), wB: wcag(BLACK, rgb255),
+      best: Math.abs(lcW) >= Math.abs(lcB) ? '#ffffff' : '#000000',
+      inGamut: inSrgb(oklchToRgb(L, C, H))
+    });
+  });
 }
 
 /* ============================================================
@@ -1151,7 +1216,7 @@ function advise(pal){
   }
 
   if (S.version === 'v2'){
-    const A = anchorFor(pal.hue, S.bar);
+    const A = anchorFor(pal.hue, S.bar, S.chromaPct/100);
     if (A) facts.unshift('Step 500 is pinned at <b>L ' + round(A.L,3) + ' / C ' + round(A.C,3) +
       '</b> — the most chroma available that still clears <b>' +
       (S.bar === 7 ? 'AAA 7:1' : 'AA 4.5:1') + '</b> on ' +
@@ -1244,6 +1309,7 @@ function render(){
     const lcC = asText ? apca(custRgb, r.rgb255) : apca(r.rgb255, custRgb);
     const wC  = wcag(custRgb, r.rgb255);
     const tr = document.createElement('tr');
+    if (Math.max(r.wW, r.wB) < S.bar) tr.className = 'row-fail';
     tr.innerHTML =
       '<td><span class="sw-cell"><i style="background:' + r.hex + '"></i>' +
         '<span class="step-key">' + r.key + '</span></span></td>' +
@@ -1264,6 +1330,19 @@ function render(){
         : '<span class="tag no">OUT</span>') + '</td>';
     tb.appendChild(tr);
   });
+
+  /* --- can every step carry text? --- */
+  const barName = S.bar === 7 ? 'AAA 7:1' : 'AA 4.5:1';
+  const failing = rows.filter(r => Math.max(r.wW, r.wB) < S.bar);
+  const a11yBar = $('a11yBar');
+  a11yBar.className = 'a11y-bar ' + (failing.length ? 'is-warn' : 'is-ok');
+  $('a11yTxt').innerHTML = failing.length
+    ? '<b>' + failing.length + ' of ' + rows.length + '</b> steps cannot carry text at ' + barName +
+      ' — neither white nor black passes on ' +
+      failing.map(r => r.key).join(', ') + '.'
+    : '<b>All ' + rows.length + '</b> steps can carry text at ' + barName +
+      (S.a11y ? ' — spaced around the unusable band.' : '.');
+  $('a11yFix').textContent = 'Make every step accessible';
 
   /* --- gamut advisor --- */
   const adv = advise(pal);
@@ -1322,27 +1401,18 @@ function render(){
   $('seedMax').textContent = 'max C ' + round(maxChroma(pal.seedL, pal.hue), 3) + ' at L ' + round(pal.seedL, 3);
   $('stepReadout').textContent = rows.length + (rows.length === 1 ? ' shade' : ' shades');
 
-  /* --- your original pick, always visible --- */
-  const bp = $('brandPick');
-  if (pal.brandHex){
-    bp.hidden = false;
-    $('bpSw').style.background = pal.brandHex;
-    $('bpHex').textContent = pal.brandHex;
-    const nearest = rows.reduce((a,r) =>
-      Math.abs(r.L - (parseHex(pal.brandHex) ? rgbToOklch(...parseHex(pal.brandHex))[0] : 0)) <
-      Math.abs(a.L - (parseHex(pal.brandHex) ? rgbToOklch(...parseHex(pal.brandHex))[0] : 0)) ? r : a, rows[0]);
-    $('bpNote').textContent = S.version === 'v2'
-      ? 'hue kept · nearest step ' + nearest.key
-      : 'nearest step ' + nearest.key;
-  } else bp.hidden = true;
-
-
-  $('barRow').hidden = S.version !== 'v2';
-  $('lightDelta').closest('.slider-row').hidden = S.version === 'v2';
-
   /* --- controls that only apply to one version --- */
   $('barRow').hidden = S.version !== 'v2';
-  $('lightDelta').closest('.slider-row').hidden = S.version === 'v2';
+
+  /* The seed swatch must track the live palette. It used to update only in
+     syncControls(), while the hue/chroma/spread sliders call render() alone —
+     so it drifted out of step and showed a colour not in the ramp.
+     In V2 it shows the anchor, which is the colour that actually matters. */
+  const shownHex = (S.version === 'v2' && rows.some(r => r.isAnchor))
+    ? rows.find(r => r.isAnchor).hex
+    : hexOf(to255(oklchToRgb(pal.seedL, maxChroma(pal.seedL, pal.hue) * (S.chromaPct/100), pal.hue)));
+  $('seedPicker').value = shownHex;
+  if (document.activeElement !== $('seedHex')) $('seedHex').value = shownHex;
 
   renderOut(rows);
   save();
@@ -1494,7 +1564,7 @@ function importJson(){
     if (raw.meta.steps) S.steps = Math.min(50, Math.max(2, +raw.meta.steps || 11));
     if (raw.meta.chromaPercent != null) S.chromaPct = Math.min(100, Math.max(0, +raw.meta.chromaPercent));
     if (raw.meta.lightnessSpread != null) S.delta = Math.min(0.45, Math.max(0.10, +raw.meta.lightnessSpread));
-    if (raw.meta.hueShift != null) S.hueShift = Math.min(40, Math.max(-40, +raw.meta.hueShift));
+    if (raw.meta.hueShift != null) S.hueShift = Math.min(60, Math.max(-60, +raw.meta.hueShift));
   }
 
   const next = [];
@@ -1595,8 +1665,6 @@ function syncControls(){
     b.setAttribute('aria-pressed', String(+b.dataset.bar === S.bar)));
   document.querySelectorAll('#copyFmt button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.cf === S.copyFmt)));
-  document.querySelectorAll('.seg button[data-steps]').forEach(b =>
-    b.setAttribute('aria-pressed', String(+b.dataset.steps === S.steps)));
 }
 
 function setSeedFromHex(str){
@@ -1653,7 +1721,7 @@ $('randomBtn').addEventListener('click', () => {
   // land on a lightness that actually carries chroma at this hue, so a random
   // pick never opens on a warning it did not deserve
   pal.seedL = S.version === 'v2'
-    ? (anchorFor(pal.hue, S.bar) || { L:0.6 }).L
+    ? (anchorFor(pal.hue, S.bar, S.chromaPct/100) || { L:0.6 }).L
     : hueCeiling(pal.hue).L;
   S.chromaPct = 100;
   pal.brandHex = hexOf(to255(oklchToRgb(pal.seedL, maxChroma(pal.seedL, pal.hue), pal.hue)));
@@ -1665,8 +1733,8 @@ $('randomBtn').addEventListener('click', () => {
 $('optimiseBtn').addEventListener('click', () => {
   const pal = active();
   if (S.version === 'v2'){
-    const a = anchorFor(pal.hue, S.bar);
-    if (a){ pal.seedL = a.L; S.chromaPct = 100; }
+    const a = anchorFor(pal.hue, S.bar, S.chromaPct/100);
+    if (a){ pal.seedL = a.L; }
   } else {
     const c = hueCeiling(pal.hue);
     pal.seedL = c.L;
@@ -1687,6 +1755,12 @@ $('verSeg').addEventListener('click', e => {
   toast(S.version === 'v2' ? 'V2 — 500 anchored, AAA guaranteed' : 'V1 — original generator');
 });
 
+$('a11yFix').addEventListener('click', () => {
+  S.a11y = true;
+  syncControls(); render();
+  toast('Ladder re-spaced — every step can carry text');
+});
+
 /* contrast bar for the anchor */
 $('barRow').addEventListener('click', e => {
   const b = e.target.closest('button[data-bar]');
@@ -1703,14 +1777,9 @@ $('renameBtn').addEventListener('click', () => {
     syncControls(); render();
   }
 });
-document.querySelectorAll('.seg button[data-steps]').forEach(b => {
-  b.addEventListener('click', () => { S.steps = +b.dataset.steps; syncControls(); render(); });
-});
 $('stepCount').addEventListener('input', e => {
   const v = Math.min(50, Math.max(2, parseInt(e.target.value, 10) || 11));
   S.steps = v;
-  document.querySelectorAll('.seg button[data-steps]').forEach(b =>
-    b.setAttribute('aria-pressed', String(+b.dataset.steps === v)));
   render();
 });
 
