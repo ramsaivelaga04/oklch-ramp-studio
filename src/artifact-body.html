@@ -1,0 +1,1823 @@
+<title>OKLCH Ramp Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ============================================================
+   TOKENS — light is the bare :root, dark redefines tokens only
+   ============================================================ */
+:root{
+  --paper:#FBFBFA;
+  --surface:#FFFFFF;
+  --raised:#F4F4F1;
+  --ink:#16161A;
+  --ink-2:#4A4A52;
+  --ink-3:#83838C;
+  --line:#E4E4DF;
+  --line-2:#D3D3CC;
+  --accent:#2F5D50;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#E8EFEB;
+  --pass:#2F6B45;
+  --warn:#8A6212;
+  --fail:#9B3226;
+  --shadow:0 1px 2px rgb(22 22 26 / .05), 0 8px 24px -12px rgb(22 22 26 / .12);
+  --radius:0.625rem;
+  --radius-sm:0.375rem;
+  --rail:clamp(19rem, 21vw, 25rem);
+  --scale:1;
+}
+/* Every size below is in rem, so this one knob resizes the whole tool. */
+html{font-size:calc(16px * var(--scale))}
+@media (min-width:1900px){ :root{ --scale:1.1 } }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#121215;
+    --surface:#1A1A1E;
+    --raised:#232329;
+    --ink:#ECECE7;
+    --ink-2:#A9A9B1;
+    --ink-3:#76767F;
+    --line:#2C2C33;
+    --line-2:#3B3B43;
+    --accent:#6FBFA3;
+    --accent-ink:#0E1A16;
+    --accent-soft:#1D2E28;
+    --pass:#69C08B;
+    --warn:#D9A63C;
+    --fail:#E0796A;
+    --shadow:0 1px 2px rgb(0 0 0 / .4), 0 8px 24px -12px rgb(0 0 0 / .6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#121215;
+  --surface:#1A1A1E;
+  --raised:#232329;
+  --ink:#ECECE7;
+  --ink-2:#A9A9B1;
+  --ink-3:#76767F;
+  --line:#2C2C33;
+  --line-2:#3B3B43;
+  --accent:#6FBFA3;
+  --accent-ink:#0E1A16;
+  --accent-soft:#1D2E28;
+  --pass:#69C08B;
+  --warn:#D9A63C;
+  --fail:#E0796A;
+  --shadow:0 1px 2px rgb(0 0 0 / .4), 0 8px 24px -12px rgb(0 0 0 / .6);
+}
+
+*{box-sizing:border-box}
+/* Must be ours, not the host's: element.hidden loses to any display rule,
+   and several hidden elements here are flex containers. */
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:0.9375rem;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;font-variant-numeric:tabular-nums}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:0.1875rem}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.masthead{
+  border-bottom:1px solid var(--line);
+  background:var(--surface);
+  padding:1.125rem 1.5rem;
+  display:flex;
+  align-items:baseline;
+  gap:1.125rem;
+  flex-wrap:wrap;
+  position:relative;
+  z-index:5;
+}
+.wordmark{
+  font-family:"Instrument Serif", Georgia, "Times New Roman", serif;
+  font-size:1.6875rem;
+  letter-spacing:.005em;
+  margin:0;
+  line-height:1;
+}
+.wordmark em{font-style:italic;color:var(--accent)}
+.tagline{
+  color:var(--ink-2);
+  font-size:0.8125rem;
+  margin:0;
+  max-width:60ch;
+}
+.badges{margin-left:auto;display:flex;gap:0.5rem;flex-wrap:wrap}
+.badge{
+  font-size:0.8125rem;
+  font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  padding:0.3125rem 0.5625rem;
+  border-radius:6.25rem;
+  border:1px solid var(--line-2);
+  color:var(--ink-2);
+  white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  gap:0.375rem;
+}
+.badge.locked{border-color:color-mix(in oklab, var(--pass) 45%, transparent);color:var(--pass)}
+.dot{width:0.375rem;height:0.375rem;border-radius:50%;background:currentColor;flex:none}
+
+/* ============================================================
+   SHELL
+   ============================================================ */
+.shell{
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  align-items:start;
+  gap:0;
+}
+.rail{
+  border-right:1px solid var(--line);
+  background:var(--surface);
+  padding:1.25rem;
+  display:flex;
+  flex-direction:column;
+  gap:1.375rem;
+  position:sticky;
+  top:0;
+  max-height:100vh;
+  overflow-y:auto;
+}
+.stage{padding:1.5rem;display:flex;flex-direction:column;gap:1.75rem;min-width:0}
+
+/* ---- control groups ---- */
+.group{display:flex;flex-direction:column;gap:0.625rem}
+.group-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:0.5rem;
+}
+.legend{
+  font-size:0.8125rem;
+  font-weight:700;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+  margin:0;
+}
+.readout{font-size:0.8125rem;color:var(--ink-2)}
+
+.seed-row{display:flex;gap:0.5rem;align-items:stretch}
+input[type="color"]{
+  inline-size:2.875rem;
+  block-size:2.375rem;
+  padding:0;
+  border:1px solid var(--line-2);
+  border-radius:var(--radius-sm);
+  background:var(--surface);
+  cursor:pointer;
+  flex:none;
+}
+input[type="color"]::-webkit-color-swatch-wrapper{padding:0.1875rem}
+input[type="color"]::-webkit-color-swatch{border:none;border-radius:0.1875rem}
+
+input[type="text"], input[type="number"], textarea, select{
+  font-family:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-variant-numeric:tabular-nums;
+  font-size:0.8125rem;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line-2);
+  border-radius:var(--radius-sm);
+  padding:0.5625rem 0.625rem;
+  width:100%;
+  min-width:0;
+}
+textarea{line-height:1.55;resize:vertical}
+input::placeholder,textarea::placeholder{color:var(--ink-3)}
+
+button{
+  font-family:inherit;
+  font-size:0.8125rem;
+  font-weight:600;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line-2);
+  border-radius:var(--radius-sm);
+  padding:0.5rem 0.75rem;
+  cursor:pointer;
+  transition:background .12s ease, border-color .12s ease;
+}
+button:hover{background:var(--raised);border-color:var(--ink-3)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{border-color:transparent;background:transparent;color:var(--ink-2);padding:6px 8px}
+button.ghost:hover{background:var(--raised);color:var(--ink)}
+
+.btn-row{display:flex;gap:0.5rem;flex-wrap:wrap}
+
+/* segmented preset control */
+.seg{display:flex;border:1px solid var(--line-2);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{
+  flex:1;
+  border:none;
+  border-radius:0;
+  border-right:1px solid var(--line-2);
+  padding:0.4375rem 0.5rem;
+  font-family:"JetBrains Mono", monospace;
+  font-size:0.75rem;
+  line-height:1.2;
+  white-space:nowrap;
+  background:var(--surface);
+}
+.seg button:last-child{border-right:none}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+
+/* sliders */
+.slider-row{display:flex;flex-direction:column;gap:0.375rem}
+.slider-label{display:flex;justify-content:space-between;font-size:0.8125rem;color:var(--ink-2)}
+.slider-label b{font-family:"JetBrains Mono",monospace;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+input[type="range"]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:1.25rem;background:transparent;cursor:pointer;margin:0;
+}
+input[type="range"]::-webkit-slider-runnable-track{height:3px;background:var(--line-2);border-radius:0.125rem}
+input[type="range"]::-moz-range-track{height:3px;background:var(--line-2);border-radius:0.125rem}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:0.9375rem;height:0.9375rem;border-radius:50%;
+  background:var(--accent);border:2px solid var(--surface);
+  margin-top:-0.375rem;box-shadow:0 0 0 1px var(--line-2);
+}
+input[type="range"]::-moz-range-thumb{
+  width:0.9375rem;height:0.9375rem;border-radius:50%;
+  background:var(--accent);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line-2);
+}
+
+/* palette chips in rail */
+.pal-list{display:flex;flex-direction:column;gap:0.3125rem}
+.pal-chip{
+  display:flex;align-items:center;gap:0.5625rem;
+  padding:0.4375rem 0.5rem;border-radius:var(--radius-sm);
+  border:1px solid transparent;background:transparent;
+  cursor:pointer;text-align:left;font-weight:500;width:100%;
+}
+.pal-chip:hover{background:var(--raised)}
+.pal-chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.pal-chip .sw{width:1.0625rem;height:1.0625rem;border-radius:0.25rem;flex:none;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .12)}
+.pal-chip .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.8125rem}
+.pal-chip .hu{font-family:"JetBrains Mono",monospace;font-size:0.8125rem;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   PANELS
+   ============================================================ */
+.panel{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.panel-head{
+  padding:0.875rem 1rem;
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;
+}
+.panel-title{margin:0;font-size:0.875rem;font-weight:700;letter-spacing:-.01em}
+.panel-note{font-size:0.75rem;color:var(--ink-3);margin:0}
+.panel-head .spacer{margin-left:auto}
+.panel-body{padding:1rem}
+
+/* ---- ramp strip ---- */
+.ramp-scroll{overflow-x:auto;padding:1rem}
+.ramp{display:flex;gap:3px;min-width:min-content}
+.chip{
+  flex:1 1 0;
+  min-width:6.25rem;
+  border-radius:0.5rem;
+  padding:0.875rem 0.75rem 0.75rem;
+  min-height:8.25rem;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  border:none;
+  cursor:pointer;
+  text-align:left;
+  font-family:"JetBrains Mono", monospace;
+  font-variant-numeric:tabular-nums;
+  box-shadow:inset 0 0 0 1px rgb(0 0 0 / .10);
+  transition:transform .12s ease;
+}
+.chip:hover{transform:translateY(-3px)}
+.chip .k{font-size:0.9375rem;font-weight:700;letter-spacing:.02em}
+.chip .v{font-size:0.75rem;opacity:.82;line-height:1.35;word-break:break-all}
+.chip .lc{font-size:0.75rem;opacity:.7;margin-top:3px}
+
+/* ---- data table ---- */
+.table-scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:0.875rem}
+th,td{padding:0.6875rem 0.9375rem;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th{
+  font-size:0.75rem;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--ink-3);font-weight:700;
+  background:var(--raised);
+  position:sticky;top:0;z-index:1;
+}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--raised)}
+tbody td:first-child, thead th:first-child{
+  position:sticky;left:0;z-index:2;
+  background:var(--surface);
+  box-shadow:1px 0 0 var(--line);
+}
+thead th:first-child{z-index:3;background:var(--raised)}
+tbody tr:hover td:first-child{background:var(--raised)}
+td.num{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums}
+.sw-cell{display:flex;align-items:center;gap:0.5625rem}
+.sw-cell i{width:1.625rem;height:1.625rem;border-radius:0.3125rem;flex:none;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .14)}
+.step-key{font-weight:700;font-family:"JetBrains Mono",monospace}
+
+.tag{
+  font-size:0.75rem;font-weight:700;padding:2px 0.4375rem;border-radius:6.25rem;
+  display:inline-block;letter-spacing:.03em;
+}
+.tag.ok{color:var(--pass);background:color-mix(in oklab, var(--pass) 14%, transparent)}
+.tag.mid{color:var(--warn);background:color-mix(in oklab, var(--warn) 16%, transparent)}
+.tag.no{color:var(--fail);background:color-mix(in oklab, var(--fail) 14%, transparent)}
+
+/* ---- all palettes grid ---- */
+.grid-rows{display:flex;flex-direction:column;gap:0.75rem}
+.grid-row{display:flex;align-items:center;gap:0.75rem}
+.grid-row .nm{
+  width:6.5rem;flex:none;font-size:0.875rem;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.grid-row .bar{display:flex;flex:1;gap:2px;min-width:0}
+.grid-row .bar span{flex:1;height:1.875rem;border-radius:3px;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .1)}
+
+/* ---- export ---- */
+.tabs{display:flex;gap:2px;border:1px solid var(--line-2);border-radius:var(--radius-sm);overflow:hidden}
+.tabs button{
+  border:none;border-radius:0;background:var(--surface);
+  border-right:1px solid var(--line-2);font-size:0.75rem;padding:0.4375rem 0.8125rem;
+}
+.tabs button:last-child{border-right:none}
+.tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.out{
+  width:100%;min-height:15rem;font-size:0.75rem;
+  background:var(--raised);border-color:var(--line);
+}
+.io-grid{display:grid;grid-template-columns:1fr;gap:0.875rem}
+
+.size-seg{width:auto;flex:none}
+.size-seg button{font-family:"Instrument Sans",sans-serif;font-weight:700;padding:0.25rem 0.625rem;line-height:1}
+.size-seg button:nth-child(1){font-size:0.6875rem}
+.size-seg button:nth-child(2){font-size:0.8125rem}
+.size-seg button:nth-child(3){font-size:0.9375rem}
+.size-seg button:nth-child(4){font-size:1.125rem}
+
+.ver-seg{width:auto;flex:none}
+.ver-seg button{font-family:"Instrument Sans",sans-serif;font-weight:700;padding:0.25rem 0.75rem}
+
+.brand-pick{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.625rem;
+  border:1px solid var(--line-2);border-radius:var(--radius-sm);background:var(--raised)}
+.bp-sw{width:1.75rem;height:1.75rem;border-radius:0.3125rem;flex:none;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .18)}
+.bp-txt{font-size:0.75rem;color:var(--ink-3);display:flex;flex-direction:column;line-height:1.3}
+.bp-txt b{font-family:"JetBrains Mono",monospace;font-size:0.8125rem;color:var(--ink);font-weight:500}
+.bp-txt em{font-style:normal;color:var(--ink-3)}
+
+
+.chip.is-anchor{box-shadow:inset 0 0 0 3px var(--ink), inset 0 0 0 5px rgb(255 255 255 / .55)}
+.anchor-flag{font-size:0.6875rem;font-weight:700;letter-spacing:.06em}
+
+/* ---- gamut advisor ---- */
+.advisor{
+  border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+  background:var(--raised);
+  padding:0.6875rem 0.75rem;
+  display:flex;flex-direction:column;gap:0.5625rem;
+}
+.advisor.is-warn{
+  border-color:color-mix(in oklab, var(--warn) 40%, transparent);
+  background:color-mix(in oklab, var(--warn) 9%, var(--raised));
+}
+.advisor.is-bad{
+  border-color:color-mix(in oklab, var(--fail) 42%, transparent);
+  background:color-mix(in oklab, var(--fail) 9%, var(--raised));
+}
+.adv-head{display:flex;align-items:center;gap:0.4375rem;font-size:0.8125rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.advisor.is-ok .adv-head{color:var(--pass)}
+.advisor.is-warn .adv-head{color:var(--warn)}
+.advisor.is-bad .adv-head{color:var(--fail)}
+.adv-facts{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:0.3125rem}
+.adv-facts li{font-size:0.8125rem;color:var(--ink-2);line-height:1.45;display:flex;gap:0.4375rem}
+.adv-facts li::before{content:"·";color:var(--ink-3);font-weight:700}
+.adv-facts b{
+  color:var(--ink);font-family:"JetBrains Mono",monospace;
+  font-weight:500;font-variant-numeric:tabular-nums;
+}
+.adv-rec{
+  font-size:0.75rem;line-height:1.45;color:var(--ink);
+  border-top:1px dashed var(--line-2);padding-top:0.5rem;margin:0;
+}
+.adv-rec strong{font-weight:700}
+.adv-fix{align-self:flex-start;font-size:0.75rem;padding:5px 10px}
+
+/* chroma slider shows the real gamut ceiling behind it */
+.track-note{
+  display:flex;justify-content:space-between;
+  font-size:0.75rem;color:var(--ink-3);
+  font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;
+  margin-top:-2px;
+}
+
+/* ---- click-to-copy cells ---- */
+td.copyable{cursor:pointer;position:relative}
+td.copyable:hover{background:var(--accent-soft);color:var(--accent)}
+td.copyable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* ---- custom contrast control ---- */
+.custom-ctl{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap}
+.custom-ctl input[type="color"]{inline-size:2.125rem;block-size:30px}
+.custom-ctl input[type="text"]{width:6rem;padding:0.375rem 0.5rem;font-size:0.75rem}
+.custom-ctl select{width:auto;padding:0.375rem 0.5rem;font-size:0.75rem;font-family:inherit}
+.custom-ctl label{font-size:0.8125rem;color:var(--ink-2)}
+
+.hint{font-size:0.8125rem;color:var(--ink-2);margin:0}
+.hint code{
+  font-family:"JetBrains Mono",monospace;font-size:0.8125rem;
+  background:var(--raised);padding:1px 0.3125rem;border-radius:0.25rem;
+  border:1px solid var(--line);
+}
+.warnline{
+  display:flex;gap:0.5625rem;align-items:flex-start;
+  font-size:0.75rem;color:var(--warn);
+  background:color-mix(in oklab, var(--warn) 10%, transparent);
+  border:1px solid color-mix(in oklab, var(--warn) 30%, transparent);
+  border-radius:var(--radius-sm);padding:0.5625rem 0.6875rem;
+}
+.warnline[hidden]{display:none}
+
+.toast{
+  position:fixed;left:50%;bottom:1.625rem;transform:translateX(-50%) translateY(8px);
+  background:var(--ink);color:var(--paper);
+  padding:0.5625rem 1rem;border-radius:6.25rem;font-size:0.8125rem;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .18s ease, transform .18s ease;
+  z-index:50;box-shadow:var(--shadow);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.footnote{
+  color:var(--ink-3);font-size:0.75rem;padding:0.25rem 2px 1.875rem;
+  max-width:78ch;line-height:1.6;
+}
+.footnote b{color:var(--ink-2)}
+
+@media (max-width:1240px){
+  .shell{grid-template-columns:1fr}
+  .rail{
+    position:static;max-height:none;
+    border-right:none;border-bottom:1px solid var(--line);
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));
+    align-items:start;gap:1.5rem 2rem;
+  }
+  .rail .group{min-width:0}
+}
+@media (max-width:720px){
+  .masthead{padding:0.875rem 1rem;gap:0.75rem}
+  .wordmark{font-size:1.5rem}
+  .tagline{font-size:0.8125rem}
+  .rail{padding:1rem;grid-template-columns:1fr}
+  .stage{padding:1rem;gap:1.25rem}
+  .panel-head{padding:0.875rem 1rem}
+  .ramp-scroll{padding:0.875rem}
+  .chip{min-width:5rem;min-height:7rem}
+  .custom-ctl{width:100%}
+  .custom-ctl select{flex:1;min-width:0}
+  .badges{width:100%}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important}
+  .chip:hover{transform:none}
+}
+</style>
+
+<header class="masthead">
+  <h1 class="wordmark">Ramp <em>Studio</em></h1>
+  <p class="tagline">Perceptual colour ramps in OKLCH — every step gamut-clamped to sRGB, contrast-checked, exportable as JSON.</p>
+  <div class="badges">
+    <span class="badge locked"><span class="dot"></span>sRGB locked · no Display-P3</span>
+    <span class="badge" id="gamutBadge">—</span>
+    <div class="seg ver-seg" id="verSeg" role="group" aria-label="Generator version">
+      <button type="button" data-v="v1">V1</button>
+      <button type="button" data-v="v2" aria-pressed="true">V2</button>
+    </div>
+    <div class="seg size-seg" id="uiScale" role="group" aria-label="Display size">
+      <button type="button" data-sc="0.95">A</button>
+      <button type="button" data-sc="1.15" aria-pressed="true">A</button>
+      <button type="button" data-sc="1.35">A</button>
+      <button type="button" data-sc="1.6">A</button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <!-- ==================== CONTROL RAIL ==================== -->
+  <aside class="rail">
+
+    <div class="group">
+      <div class="group-head">
+        <p class="legend">Seed colour</p>
+        <span class="readout" id="seedMax">—</span>
+      </div>
+      <div class="seed-row">
+        <input type="color" id="seedPicker" value="#3b82f6" aria-label="Seed colour picker">
+        <input type="text" id="seedHex" value="#3b82f6" spellcheck="false" aria-label="Seed hex value">
+      </div>
+      <div class="brand-pick" id="brandPick" hidden>
+        <span class="bp-sw" id="bpSw"></span>
+        <span class="bp-txt">Your pick <b id="bpHex">—</b><em id="bpNote"></em></span>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="ghost" id="randomBtn">Randomise</button>
+        <button type="button" class="ghost" id="optimiseBtn">Optimise</button>
+        <button type="button" class="ghost" id="renameBtn">Rename palette</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <p class="legend">Steps</p>
+        <span class="readout" id="stepReadout">11 shades</span>
+      </div>
+      <div class="seg" role="group" aria-label="Step count presets">
+        <button type="button" data-steps="5">5</button>
+        <button type="button" data-steps="9">9</button>
+        <button type="button" data-steps="11">11</button>
+        <button type="button" data-steps="16">16</button>
+        <button type="button" data-steps="24">24</button>
+      </div>
+      <input type="number" id="stepCount" min="2" max="50" step="1" value="11" aria-label="Custom step count">
+      <p class="hint">Any count from 2 to 50. Labels always span <code>50</code>&nbsp;→&nbsp;<code>950</code>.</p>
+    </div>
+
+    <div class="group">
+      <p class="legend">Ramp shape</p>
+      <div class="group-head" id="barRow">
+        <p class="legend" style="text-transform:none;letter-spacing:0">Contrast bar for 500</p>
+        <div class="seg" style="width:auto">
+          <button type="button" data-bar="4.5">AA</button>
+          <button type="button" data-bar="7" aria-pressed="true">AAA</button>
+        </div>
+      </div>
+      <div class="slider-row">
+        <label class="slider-label" for="chromaPct">Chroma <b><span id="chromaPctVal">85</span>% of max</b></label>
+        <input type="range" id="chromaPct" min="0" max="100" step="1" value="85">
+        <div class="track-note"><span>C 0</span><span id="chromaAbs">—</span></div>
+      </div>
+      <div class="slider-row">
+        <label class="slider-label" for="lightDelta">Lightness spread <b id="lightDeltaVal">0.40</b></label>
+        <input type="range" id="lightDelta" min="0.10" max="0.45" step="0.01" value="0.40">
+      </div>
+      <div class="slider-row">
+        <label class="slider-label" for="hueTune">Hue <b><span id="hueVal">259.8</span>°</b></label>
+        <input type="range" id="hueTune" min="0" max="360" step="0.1" value="259.8">
+        <div class="track-note"><span>sRGB ceiling</span><span id="hueCeil">—</span></div>
+      </div>
+      <div class="slider-row">
+        <label class="slider-label" for="hueShift">Hue shift across ramp <b><span id="hueShiftVal">0</span>°</b></label>
+        <input type="range" id="hueShift" min="-40" max="40" step="1" value="0">
+      </div>
+      <div class="warnline" id="driftWarn" hidden>
+        <span aria-hidden="true">▲</span>
+        <span>Hue spread is <b id="driftAmt">0</b>° across the ramp. Above 10° the drift becomes visible — the ramp will read as two different hues at its ends.</span>
+      </div>
+
+      <div class="advisor is-ok" id="advisor">
+        <div class="adv-head"><span class="dot"></span><span id="advTitle">Inside the gamut</span></div>
+        <ul class="adv-facts" id="advFacts"></ul>
+        <p class="adv-rec" id="advRec" hidden></p>
+        <button type="button" class="adv-fix" id="advFix" hidden>Apply recommendation</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <p class="legend">Palettes</p>
+        <span class="readout" id="palCount">1</span>
+      </div>
+      <div class="pal-list" id="palList"></div>
+      <div class="btn-row">
+        <button type="button" id="addPal">Add palette</button>
+        <button type="button" class="ghost" id="delPal">Remove</button>
+      </div>
+      <p class="hint">All palettes share the same lightness ladder and chroma percentage, so hues stay equally bright and equally vivid.</p>
+    </div>
+
+  </aside>
+
+  <!-- ==================== STAGE ==================== -->
+  <main class="stage">
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title" id="rampTitle">brand</h2>
+        <p class="panel-note" id="rampNote">—</p>
+        <span class="spacer"></span>
+        <span class="panel-note">Click a swatch to copy</span>
+        <div class="seg" id="copyFmt" role="group" aria-label="Format copied when a swatch is clicked" style="width:auto">
+          <button type="button" data-cf="hex">HEX</button>
+          <button type="button" data-cf="rgb">RGB</button>
+          <button type="button" data-cf="oklch" aria-pressed="true">OKLCH</button>
+          <button type="button" data-cf="all">All 3</button>
+        </div>
+        <button type="button" class="ghost" id="copyRow">Copy this ramp</button>
+      </div>
+      <div class="ramp-scroll">
+        <div class="ramp" id="ramp"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="allPanel">
+      <div class="panel-head">
+        <h2 class="panel-title">All palettes</h2>
+        <p class="panel-note">Same L ladder, same chroma % — different hue.</p>
+      </div>
+      <div class="panel-body">
+        <div class="grid-rows" id="gridRows"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Contrast &amp; gamut</h2>
+        <p class="panel-note">APCA <b>Lc</b> and WCAG 2 ratio. Click any value to copy it.</p>
+        <span class="spacer"></span>
+        <div class="custom-ctl">
+          <label for="customHex">Also check</label>
+          <input type="color" id="customPick" value="#f7f7f5" aria-label="Custom colour to check against">
+          <input type="text" id="customHex" value="#f7f7f5" spellcheck="false" aria-label="Custom colour hex">
+          <select id="customRole" aria-label="Role of the custom colour">
+            <option value="text">as text on each shade</option>
+            <option value="bg">as background behind each shade</option>
+          </select>
+        </div>
+        <label class="readout" style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="aaaMode"> AAA (7:1) instead of AA
+        </label>
+      </div>
+      <div class="table-scroll">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th>Step</th><th>OKLCH</th><th>Hex</th><th>RGB</th>
+              <th>Lc on white</th><th>Lc on black</th>
+              <th id="thLcCustom">Lc custom</th><th id="thWcagCustom">WCAG custom</th>
+              <th>WCAG white</th><th>WCAG black</th>
+              <th>Best text</th><th>Gamut</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Export</h2>
+        <div class="tabs" role="tablist" id="tabs">
+          <button type="button" role="tab" data-fmt="json" aria-selected="true">JSON</button>
+          <button type="button" role="tab" data-fmt="compact" aria-selected="false">JSON compact</button>
+          <button type="button" role="tab" data-fmt="css" aria-selected="false">CSS vars</button>
+          <button type="button" role="tab" data-fmt="tw" aria-selected="false">Tailwind v4</button>
+          <button type="button" role="tab" data-fmt="figma" aria-selected="false">Figma tokens</button>
+        </div>
+        <span class="spacer"></span>
+        <button type="button" class="primary" id="copyOut">Copy</button>
+      </div>
+      <div class="panel-body io-grid">
+        <textarea class="out mono" id="out" spellcheck="false" readonly aria-label="Export output"></textarea>
+        <div class="group">
+          <p class="legend">Paste JSON back in</p>
+          <textarea class="mono" id="inbox" rows="4" spellcheck="false" placeholder='{"meta":{"steps":11,...},"palettes":{...}}  — or compact {"brand":{"500":"#3b82f6"}}'></textarea>
+          <div class="btn-row">
+            <button type="button" id="importBtn">Load JSON</button>
+            <button type="button" class="ghost" id="resetBtn">Reset to defaults</button>
+          </div>
+          <p class="hint" id="importMsg"></p>
+        </div>
+      </div>
+    </section>
+
+    <p class="footnote">
+      <b>How the ramp is built.</b> The seed is converted to OKLCH. Lightness is distributed evenly from
+      <code>L+spread</code> down to <code>L−spread</code>, clamped to 0.05–0.95 so no step collapses into pure black or
+      white. For every step the maximum chroma that still fits inside sRGB is found by binary search on the gamut
+      boundary, then multiplied by your chroma percentage — which is why the lightest and darkest steps are naturally
+      less colourful. <b>Nothing here can produce a Display-P3 colour:</b> a value only leaves sRGB when its chroma
+      exceeds that boundary, and the boundary is exactly what every step is clamped to. The badge in the header
+      re-verifies each generated step and would turn red if any escaped.
+    </p>
+
+    <p class="footnote">
+      <b>Why the advisor doesn’t use a fixed “optimal chroma” band.</b> Tools that warn when chroma leaves a
+      set range — say 5–25% — are hue-blind, and the sRGB boundary is not. At hue 207° nothing above
+      <code>C 0.146</code> exists at <em>any</em> lightness, so a 25% ceiling is unreachable advice; at hue 330°
+      the gamut runs to <code>C 0.317</code>, so the same ceiling is needlessly strict. Worse, the band scales
+      badly at the extremes: at <code>L 0.10</code>, hue 207°, the real ceiling is <code>C 0.017</code> — a colour
+      at <code>C 0.30</code> is not slightly over, it is roughly seventeen times over. Everything the advisor
+      reports is measured against the boundary for your actual lightness and hue.
+    </p>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   1. COLOUR MATHS — OKLab/OKLCH ⇄ sRGB (Björn Ottosson)
+   ============================================================ */
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+
+function lin(c){ return c <= 0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4); }
+function gam(c){ return c <= 0.0031308 ? c*12.92 : 1.055*Math.pow(c, 1/2.4) - 0.055; }
+
+// OKLab -> linear sRGB -> gamma sRGB (0..1 floats, may fall outside 0..1)
+function oklabToRgb(L, a, b){
+  const l_ = L + 0.3963377774*a + 0.2158037573*b;
+  const m_ = L - 0.1055613458*a - 0.0638541728*b;
+  const s_ = L - 0.0894841775*a - 1.2914855480*b;
+  const l = l_*l_*l_, m = m_*m_*m_, s = s_*s_*s_;
+  return [
+    gam( 4.0767416621*l - 3.3077115913*m + 0.2309699292*s),
+    gam(-1.2684380046*l + 2.6097574011*m - 0.3413193965*s),
+    gam(-0.0041960863*l - 0.7034186147*m + 1.7076147010*s)
+  ];
+}
+function rgbToOklab(r, g, b){
+  const R = lin(r), G = lin(g), B = lin(b);
+  const l = Math.cbrt(0.4122214708*R + 0.5363325363*G + 0.0514459929*B);
+  const m = Math.cbrt(0.2119034982*R + 0.6806995451*G + 0.1073969566*B);
+  const s = Math.cbrt(0.0883024619*R + 0.2817188376*G + 0.6299787005*B);
+  return [
+    0.2104542553*l + 0.7936177850*m - 0.0040720468*s,
+    1.9779984951*l - 2.4285922050*m + 0.4505937099*s,
+    0.0259040371*l + 0.7827717662*m - 0.8086757660*s
+  ];
+}
+function oklchToRgb(L, C, H){
+  const h = H * Math.PI / 180;
+  return oklabToRgb(L, C*Math.cos(h), C*Math.sin(h));
+}
+function rgbToOklch(r, g, b){
+  const [L, a, bb] = rgbToOklab(r, g, b);
+  const C = Math.sqrt(a*a + bb*bb);
+  let H = Math.atan2(bb, a) * 180 / Math.PI;
+  if (H < 0) H += 360;
+  return [L, C, C < 1e-6 ? 0 : H];
+}
+
+const EPS = 1e-6;
+function inSrgb(rgb){
+  return rgb[0] >= -EPS && rgb[0] <= 1+EPS
+      && rgb[1] >= -EPS && rgb[1] <= 1+EPS
+      && rgb[2] >= -EPS && rgb[2] <= 1+EPS;
+}
+
+/* Largest chroma at this L/H that still fits inside sRGB.
+   The sRGB solid is convex, so the ray outward from the neutral axis
+   crosses the boundary exactly once — binary search is exact enough. */
+function maxChroma(L, H){
+  if (L <= 0 || L >= 1) return 0;
+  let lo = 0, hi = 0.42;
+  if (inSrgb(oklchToRgb(L, hi, H))) return hi;
+  for (let i = 0; i < 34; i++){
+    const mid = (lo + hi) / 2;
+    if (inSrgb(oklchToRgb(L, mid, H))) lo = mid; else hi = mid;
+  }
+  return lo;
+}
+
+/* ---- formatting ---- */
+const round = (v, p) => {
+  const r = Number(v.toFixed(p));
+  return Object.is(r, -0) ? 0 : r;
+};
+function to255(rgb){
+  return rgb.map(v => Math.round(clamp01(v) * 255));
+}
+function hexOf(rgb255){
+  return '#' + rgb255.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function parseHex(str){
+  let s = String(str).trim().replace(/^#/, '');
+  if (/^[0-9a-f]{3}$/i.test(s)) s = s.split('').map(c => c + c).join('');
+  if (!/^[0-9a-f]{6}$/i.test(s)) return null;
+  return [
+    parseInt(s.slice(0,2), 16) / 255,
+    parseInt(s.slice(2,4), 16) / 255,
+    parseInt(s.slice(4,6), 16) / 255
+  ];
+}
+function oklchStr(L, C, H){
+  return 'oklch(' + round(L,3) + ' ' + round(C,3) + ' ' + round(H,3) + ')';
+}
+
+/* ============================================================
+   2. CONTRAST — APCA (W3 0.1.9) and WCAG 2
+   ============================================================ */
+const APCA = { trc:2.4, Ntx:0.57, Nbg:0.56, Rtx:0.62, Rbg:0.65,
+               clip:1.414, thr:0.022, scale:1.14, off:0.027, lo:0.1 };
+
+function apcaY(rgb255){
+  const s = v => Math.pow(v/255, APCA.trc);
+  return 0.2126729*s(rgb255[0]) + 0.7151522*s(rgb255[1]) + 0.0721750*s(rgb255[2]);
+}
+function softClamp(Y){
+  return Y > APCA.thr ? Y : Y + Math.pow(APCA.thr - Y, APCA.clip);
+}
+/** Lc of text colour against background. Positive = light text on dark. */
+function apca(textRgb, bgRgb){
+  const Yt = softClamp(apcaY(textRgb));
+  const Yb = softClamp(apcaY(bgRgb));
+  if (Math.abs(Yb - Yt) < 0.0005) return 0;
+  let out;
+  if (Yb > Yt){ // dark text on light background
+    const S = (Math.pow(Yb, APCA.Nbg) - Math.pow(Yt, APCA.Ntx)) * APCA.scale;
+    out = S < APCA.lo ? 0 : S - APCA.off;
+  } else {      // light text on dark background
+    const S = (Math.pow(Yb, APCA.Rbg) - Math.pow(Yt, APCA.Rtx)) * APCA.scale;
+    out = S > -APCA.lo ? 0 : S + APCA.off;
+  }
+  return out * 100;
+}
+function relLum(rgb255){
+  const f = v => lin(v/255);
+  return 0.2126*f(rgb255[0]) + 0.7152*f(rgb255[1]) + 0.0722*f(rgb255[2]);
+}
+function wcag(a, b){
+  const la = relLum(a), lb = relLum(b);
+  const hi = Math.max(la, lb), lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const WHITE = [255,255,255], BLACK = [0,0,0];
+
+/* ============================================================
+   3. STEP LABELS — always span 50 → 950, any count
+   ============================================================ */
+const FIXED = {
+  5:  [100,300,500,700,900],
+  9:  [50,100,200,300,500,700,800,900,950],
+  11: [50,100,200,300,400,500,600,700,800,900,950]
+};
+function stepLabels(n){
+  if (FIXED[n]) return FIXED[n].slice();
+  if (n === 1) return [500];
+  const snap = n <= 20 ? 5 : 1;
+  const out = [];
+  for (let i = 0; i < n; i++){
+    const raw = 50 + (900 * i) / (n - 1);
+    let v = Math.round(raw / snap) * snap;
+    while (out.includes(v)) v += snap;      // guarantee unique ascending labels
+    out.push(v);
+  }
+  return out;
+}
+
+/* ============================================================
+   4. STATE
+   ============================================================ */
+const DEFAULTS = {
+  steps: 11,
+  chromaPct: 85,
+  delta: 0.40,
+  hueShift: 0,
+  aaa: false,
+  active: 0,
+  copyFmt: 'oklch',
+  uiScale: 1.15,
+  version: 'v2',
+  bar: 7,
+  custom: '#f7f7f5',
+  customRole: 'text',
+  palettes: [{ name:'brand', hue:259.8, seedL:0.623, brandHex:'#4383ee' }]
+};
+let S = Object.assign(structuredClone(DEFAULTS), load() || {});
+
+function load(){
+  try {
+    const raw = localStorage.getItem('ramp-studio');
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || !Array.isArray(p.palettes) || !p.palettes.length) return null;
+    return p;
+  } catch(e){ return null; }
+}
+function save(){
+  try { localStorage.setItem('ramp-studio', JSON.stringify(S)); } catch(e){}
+}
+const active = () => S.palettes[S.active];
+
+/* ============================================================
+   5. GENERATION
+   ============================================================ */
+function buildRamp(pal){
+  if (S.version === 'v2') return buildRampV2(pal);
+  const labels = stepLabels(S.steps);
+  const n = labels.length;
+  const maxL = Math.min(0.95, pal.seedL + S.delta);
+  const minL = Math.max(0.05, pal.seedL - S.delta);
+  const rows = [];
+
+  for (let i = 0; i < n; i++){
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    const L = maxL - (maxL - minL) * t;
+    // hue shift is distributed symmetrically about the ramp's centre
+    const H = (pal.hue + S.hueShift * (t - 0.5) * 2 + 360) % 360;
+    const mc = maxChroma(L, H);
+    const C = mc * (S.chromaPct / 100);
+    const rgb = oklchToRgb(L, C, H);
+    const rgb255 = to255(rgb);
+    const hex = hexOf(rgb255);
+
+    const lcW = apca(WHITE, rgb255);   // white text on this colour
+    const lcB = apca(BLACK, rgb255);   // black text on this colour
+    const best = Math.abs(lcW) >= Math.abs(lcB) ? '#ffffff' : '#000000';
+
+    rows.push({
+      key: labels[i], L, C, H,
+      maxC: mc,
+      hex,
+      rgb255,
+      oklch: oklchStr(L, C, H),
+      lcW, lcB,
+      wW: wcag(WHITE, rgb255),
+      wB: wcag(BLACK, rgb255),
+      best,
+      inGamut: inSrgb(oklchToRgb(L, C, H))
+    });
+  }
+  return rows;
+}
+
+/* ============================================================
+   5a. V2 ANCHORED ENGINE
+   500 is the primary: maximum chroma, guaranteed to pass WCAG at the
+   chosen bar against white OR black, and placed so the ladder stays
+   balanced. At AAA there is a dead zone (L 0.464-0.670) where neither
+   text colour passes, so the anchor is always pushed out of it.
+   ============================================================ */
+const V2_TOP = 0.97, V2_BOTTOM = 0.18, V2_BALANCE = 0.55;
+const anchorCache = new Map();
+
+function anchorFor(H, bar){
+  const key = Math.round(H*2)/2 + ':' + bar;
+  if (anchorCache.has(key)) return anchorCache.get(key);
+  let best = null;
+  for (let L = 0.06; L <= 0.94; L += 0.002){
+    const c = maxChroma(L, H);
+    if (c <= 0) continue;
+    const rgb = to255(oklchToRgb(L, c, H));
+    const ww = wcag(WHITE, rgb), wk = wcag(BLACK, rgb);
+    const pass = Math.max(ww, wk);
+    if (pass < bar) continue;                       // must clear the bar
+    const above = V2_TOP - L, below = L - V2_BOTTOM;
+    if (above <= 0 || below <= 0) continue;
+    const bal = Math.min(above, below) / Math.max(above, below);
+    if (bal < V2_BALANCE) continue;                 // must keep the ladder sane
+    if (!best || c > best.C) best = { L, C:c, text: ww >= wk ? '#ffffff' : '#000000', wcag:pass, bal };
+  }
+  // last resort: relax the balance rule rather than fail outright
+  if (!best){
+    for (let L = 0.06; L <= 0.94; L += 0.002){
+      const c = maxChroma(L, H);
+      const rgb = to255(oklchToRgb(L, c, H));
+      const ww = wcag(WHITE, rgb), wk = wcag(BLACK, rgb), pass = Math.max(ww, wk);
+      if (pass >= bar && (!best || c > best.C))
+        best = { L, C:c, text: ww >= wk ? '#ffffff' : '#000000', wcag:pass, bal:0, relaxed:true };
+    }
+  }
+  anchorCache.set(key, best);
+  return best;
+}
+
+/** Index of the step that carries the 500 role. */
+function anchorIndex(labels){
+  let bi = 0, bd = Infinity;
+  labels.forEach((v,i) => { const d = Math.abs(v-500); if (d < bd){ bd = d; bi = i; } });
+  return bi;
+}
+
+function buildRampV2(pal){
+  const labels = stepLabels(S.steps);
+  const n = labels.length;
+  const ai = anchorIndex(labels);
+  const A = anchorFor(pal.hue, S.bar);
+  const rows = [];
+
+  for (let i = 0; i < n; i++){
+    // lightness: two straight segments meeting exactly at the anchor
+    let L;
+    if (n === 1) L = A.L;
+    else if (i === ai) L = A.L;
+    else if (i < ai)  L = V2_TOP - (V2_TOP - A.L) * (ai ? i/ai : 0);
+    else              L = A.L - (A.L - V2_BOTTOM) * ((i-ai) / (n-1-ai));
+
+    const t = n === 1 ? 0.5 : i/(n-1);
+    const H = (pal.hue + S.hueShift * (t - 0.5) * 2 + 360) % 360;
+
+    // chroma peaks at exactly 100% of the ceiling on the anchor step
+    let frac;
+    if (i === ai) frac = 1;
+    else if (i < ai) frac = 0.26 + 0.74 * Math.pow(ai ? i/ai : 1, 1.15);
+    else             frac = 1 - 0.45 * Math.pow((i-ai)/(n-1-ai), 1.15);
+
+    const mc = maxChroma(L, H);
+    // The anchor is pinned to the full ceiling: its contrast guarantee was proved
+    // at that exact chroma, so scaling it down here would silently break the bar.
+    const C = (i === ai) ? mc : mc * frac * (S.chromaPct/100);
+    const rgb255 = to255(oklchToRgb(L, C, H));
+    const hex = hexOf(rgb255);
+    const lcW = apca(WHITE, rgb255), lcB = apca(BLACK, rgb255);
+
+    rows.push({
+      key: labels[i], L, C, H, maxC: mc, hex, rgb255,
+      oklch: oklchStr(L, C, H),
+      lcW, lcB,
+      wW: wcag(WHITE, rgb255), wB: wcag(BLACK, rgb255),
+      best: Math.abs(lcW) >= Math.abs(lcB) ? '#ffffff' : '#000000',
+      inGamut: inSrgb(oklchToRgb(L, C, H)),
+      isAnchor: i === ai
+    });
+  }
+  return rows;
+}
+
+/* ============================================================
+   5b. GAMUT ADVISOR
+   The sRGB ceiling is a function of BOTH lightness and hue, so a fixed
+   "optimal chroma 5–25%" band is meaningless: at hue 207 nothing above
+   C 0.146 exists at any lightness, while hue 330 reaches C 0.317.
+   Everything below is measured off the real boundary instead.
+   ============================================================ */
+const ceilCache = new Map();
+/** Highest chroma this hue can reach anywhere, and the lightness where it peaks. */
+function hueCeiling(H){
+  const key = Math.round(H * 2) / 2;
+  if (ceilCache.has(key)) return ceilCache.get(key);
+  let best = 0, bestL = 0.5;
+  for (let L = 0.02; L < 0.99; L += 0.01){
+    const c = maxChroma(L, key);
+    if (c > best){ best = c; bestL = L; }
+  }
+  const val = { c:best, L:bestL };
+  ceilCache.set(key, val);
+  return val;
+}
+
+function advise(pal){
+  const rows = buildRamp(pal);
+  const mid = rows[Math.floor(rows.length / 2)];
+  const ends = [rows[0], rows[rows.length - 1]];
+  const ceil = hueCeiling(pal.hue);
+  const seedCeil = maxChroma(pal.seedL, pal.hue);
+  const facts = [];
+  let level = 'ok', title = 'Inside the gamut', rec = null, fix = null;
+
+  facts.push('At hue <b>' + round(pal.hue,1) + '°</b> the sRGB ceiling is <b>C ' +
+             round(ceil.c,3) + '</b>, peaking at <b>L ' + round(ceil.L,2) + '</b>.');
+  facts.push('Your seed sits at <b>L ' + round(pal.seedL,3) +
+             '</b>, where the ceiling is <b>C ' + round(seedCeil,3) +
+             '</b> — you are using <b>C ' + round(seedCeil * S.chromaPct/100, 3) + '</b>.');
+
+  // 1 — a hue that simply cannot be vivid in sRGB
+  if (ceil.c < 0.16){
+    title = 'Inside the gamut — low-chroma hue';
+    facts.push('This is one of sRGB’s weakest hue regions — cyans and teals top out near <b>C 0.15</b> where magentas reach <b>C 0.32</b>.');
+    rec = 'This ramp <strong>cannot</strong> be made more vivid by raising chroma — it is already at the physical ceiling. If it must read stronger, shift the hue toward <strong>' +
+          (pal.hue > 140 && pal.hue < 260 ? '150° (green) or 280° (violet)' : '330° (magenta)') + '</strong>.';
+  }
+
+  // 2 — seed lightness parked where almost no chroma exists
+  if (seedCeil < ceil.c * 0.45){
+    level = level === 'ok' ? 'warn' : level;
+    title = 'Chroma starved at this lightness';
+    facts.push('At this lightness only <b>' + Math.round(100*seedCeil/ceil.c) +
+               '%</b> of the hue’s available chroma exists.');
+    rec = 'Move the seed toward <strong>L ' + round(ceil.L,2) +
+          '</strong> to reach this hue’s full <strong>C ' + round(ceil.c,3) + '</strong>.';
+    fix = { seedL: ceil.L };
+  }
+
+  // 3 — ramp ends collapsing to near-grey.
+  // Desaturated ends are normal and correct: the gamut genuinely narrows toward
+  // both extremes, and every mainstream 50/950 ramp is near-grey at its tips.
+  // So this is reported as a plain fact, and only escalates when the ends have
+  // collapsed so far that the ramp has effectively lost its hue.
+  const endWorst = Math.min(ends[0].C, ends[1].C);
+  const ratio = mid.C > 0 ? endWorst / mid.C : 1;
+  facts.push('End steps carry <b>' + Math.round(ratio*100) +
+             '%</b> of the mid step’s chroma (<b>' + ends[0].hex + '</b> → <b>' +
+             ends[1].hex + '</b>) — narrowing toward the tips is expected.');
+  if (ratio < 0.07 && S.version !== 'v2'){
+    level = level === 'bad' ? 'bad' : 'warn';
+    if (title === 'Inside the gamut') title = 'Ramp ends have lost their hue';
+    if (!rec){
+      const suggested = Math.max(0.10, Math.round((S.delta - 0.10) * 100) / 100);
+      rec = 'The tips are essentially grey. Narrow the lightness spread to about <strong>' +
+            suggested.toFixed(2) + '</strong> to keep them inside the coloured part of the gamut.';
+      fix = { delta: suggested };
+    }
+  }
+
+  // 4 — anything genuinely outside sRGB (should be impossible by construction)
+  const escaped = rows.filter(r => !r.inGamut).length;
+  if (escaped){
+    level = 'bad';
+    title = escaped + ' step' + (escaped>1?'s':'') + ' outside sRGB';
+    rec = 'Lower the chroma percentage until every step re-enters the gamut.';
+  }
+
+  if (S.version === 'v2'){
+    const A = anchorFor(pal.hue, S.bar);
+    if (A) facts.unshift('Step 500 is pinned at <b>L ' + round(A.L,3) + ' / C ' + round(A.C,3) +
+      '</b> — the most chroma available that still clears <b>' +
+      (S.bar === 7 ? 'AAA 7:1' : 'AA 4.5:1') + '</b> on ' +
+      (A.text === '#ffffff' ? 'white' : 'black') + ' text (<b>' + round(A.wcag,2) + ':1</b>).');
+  }
+  if (level === 'ok'){
+    facts.push('Every step is clamped to the boundary above, so nothing can spill into Display-P3.');
+  }
+  return { level, title, facts, rec, fix };
+}
+
+/* ============================================================
+   6. RENDER
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+function render(){
+  const pal = active();
+  const rows = buildRamp(pal);
+  const labels = rows.map(r => r.key);
+
+  /* --- header badge: re-verify every step of every palette --- */
+  let escaped = 0, total = 0;
+  S.palettes.forEach(p => buildRamp(p).forEach(r => { total++; if (!r.inGamut) escaped++; }));
+  const badge = $('gamutBadge');
+  badge.textContent = escaped === 0
+    ? total + ' steps verified in sRGB'
+    : escaped + ' of ' + total + ' steps out of gamut';
+  badge.classList.toggle('locked', escaped === 0);
+
+  /* --- ramp strip --- */
+  $('rampTitle').textContent = pal.name;
+  $('rampNote').textContent =
+    rows.length + ' steps · ' + labels[0] + '→' + labels[labels.length-1] +
+    ' · hue ' + round(pal.hue,1) + '° · chroma ' + S.chromaPct + '% of max';
+
+  const ramp = $('ramp');
+  ramp.textContent = '';
+  rows.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (r.isAnchor ? ' is-anchor' : '');
+    b.style.background = r.hex;
+    b.style.color = r.best;
+    b.title = 'Copy ' + copyText(r);
+    const lc = Math.abs(r.best === '#ffffff' ? r.lcW : r.lcB);
+    b.innerHTML =
+      '<span class="k">' + r.key + '</span>' +
+      '<span class="v">' + (S.copyFmt === 'rgb' ? r.rgb255.join(', ') : r.hex) +
+      '<span class="lc">Lc ' + Math.round(lc) + '</span></span>';
+    b.addEventListener('click', () => copy(copyText(r), 'Copied ' + pal.name + ' ' + r.key));
+    ramp.appendChild(b);
+  });
+
+  /* --- all-palettes grid --- */
+  const gr = $('gridRows');
+  gr.textContent = '';
+  S.palettes.forEach((p, idx) => {
+    const row = document.createElement('div');
+    row.className = 'grid-row';
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = p.name;
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    buildRamp(p).forEach(r => {
+      const s = document.createElement('span');
+      s.style.background = r.hex;
+      s.title = p.name + ' ' + r.key + ' · ' + r.hex;
+      bar.appendChild(s);
+    });
+    row.append(nm, bar);
+    row.addEventListener('click', () => { S.active = idx; save(); syncControls(); render(); });
+    row.style.cursor = 'pointer';
+    gr.appendChild(row);
+  });
+  $('allPanel').hidden = S.palettes.length < 2;
+
+  /* --- table --- */
+  const aaLimit = S.aaa ? 7 : 4.5;
+  const custRgb = parseHex(S.custom) ? to255(parseHex(S.custom)) : [247,247,245];
+  const asText = S.customRole === 'text';
+  $('thLcCustom').textContent  = 'Lc ' + (asText ? 'custom on shade' : 'shade on custom');
+  $('thWcagCustom').textContent = 'WCAG custom';
+
+  const tb = $('tbody');
+  tb.textContent = '';
+  rows.forEach(r => {
+    // APCA is polarity-sensitive, so the direction genuinely matters
+    const lcC = asText ? apca(custRgb, r.rgb255) : apca(r.rgb255, custRgb);
+    const wC  = wcag(custRgb, r.rgb255);
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><span class="sw-cell"><i style="background:' + r.hex + '"></i>' +
+        '<span class="step-key">' + r.key + '</span></span></td>' +
+      '<td class="num copyable" tabindex="0" data-copy="' + r.oklch + '">' + r.oklch + '</td>' +
+      '<td class="num copyable" tabindex="0" data-copy="' + r.hex + '">' + r.hex + '</td>' +
+      '<td class="num copyable" tabindex="0" data-copy="rgb(' + r.rgb255.join(', ') + ')">' +
+        r.rgb255.join(', ') + '</td>' +
+      '<td class="num">' + lcTag(r.lcW) + '</td>' +
+      '<td class="num">' + lcTag(r.lcB) + '</td>' +
+      '<td class="num">' + lcTag(lcC) + '</td>' +
+      '<td class="num">' + wcagTag(wC, aaLimit) + '</td>' +
+      '<td class="num">' + wcagTag(r.wW, aaLimit) + '</td>' +
+      '<td class="num">' + wcagTag(r.wB, aaLimit) + '</td>' +
+      '<td><span class="sw-cell"><i style="background:' + r.best + '"></i>' +
+        (r.best === '#ffffff' ? 'white' : 'black') + '</span></td>' +
+      '<td>' + (r.inGamut
+        ? '<span class="tag ok">sRGB</span>'
+        : '<span class="tag no">OUT</span>') + '</td>';
+    tb.appendChild(tr);
+  });
+
+  /* --- gamut advisor --- */
+  const adv = advise(pal);
+  const box = $('advisor');
+  box.className = 'advisor is-' + adv.level;
+  $('advTitle').textContent = adv.title;
+  const ul = $('advFacts');
+  ul.textContent = '';
+  adv.facts.forEach(f => {
+    const li = document.createElement('li');
+    const sp = document.createElement('span');
+    sp.innerHTML = f;
+    li.appendChild(sp);
+    ul.appendChild(li);
+  });
+  const recEl = $('advRec');
+  recEl.hidden = !adv.rec;
+  if (adv.rec) recEl.innerHTML = adv.rec;
+  const fixBtn = $('advFix');
+  fixBtn.hidden = !adv.fix;
+  fixBtn.onclick = adv.fix ? () => {
+    if (adv.fix.seedL != null) active().seedL = adv.fix.seedL;
+    if (adv.fix.delta != null) S.delta = adv.fix.delta;
+    syncControls(); render();
+    toast('Recommendation applied');
+  } : null;
+
+  const ceil = hueCeiling(pal.hue);
+  $('hueCeil').textContent = 'C ' + round(ceil.c,3) + ' @ L ' + round(ceil.L,2);
+  $('chromaAbs').textContent = 'C ' + round(maxChroma(pal.seedL, pal.hue) * S.chromaPct/100, 3) +
+                               ' of ' + round(maxChroma(pal.seedL, pal.hue), 3);
+
+  /* --- hue drift warning --- */
+  const spread = Math.abs(S.hueShift);
+  $('driftWarn').hidden = spread <= 10;
+  $('driftAmt').textContent = spread;
+
+  /* --- palette chips --- */
+  const pl = $('palList');
+  pl.textContent = '';
+  S.palettes.forEach((p, idx) => {
+    const mid = buildRamp(p)[Math.floor(stepLabels(S.steps).length / 2)];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pal-chip';
+    b.setAttribute('aria-pressed', String(idx === S.active));
+    b.innerHTML =
+      '<span class="sw" style="background:' + mid.hex + '"></span>' +
+      '<span class="nm"></span><span class="hu">' + round(p.hue,0) + '°</span>';
+    b.querySelector('.nm').textContent = p.name;
+    b.addEventListener('click', () => { S.active = idx; save(); syncControls(); render(); });
+    pl.appendChild(b);
+  });
+  $('palCount').textContent = S.palettes.length + (S.palettes.length === 1 ? ' palette' : ' palettes');
+
+  $('seedMax').textContent = 'max C ' + round(maxChroma(pal.seedL, pal.hue), 3) + ' at L ' + round(pal.seedL, 3);
+  $('stepReadout').textContent = rows.length + (rows.length === 1 ? ' shade' : ' shades');
+
+  /* --- your original pick, always visible --- */
+  const bp = $('brandPick');
+  if (pal.brandHex){
+    bp.hidden = false;
+    $('bpSw').style.background = pal.brandHex;
+    $('bpHex').textContent = pal.brandHex;
+    const nearest = rows.reduce((a,r) =>
+      Math.abs(r.L - (parseHex(pal.brandHex) ? rgbToOklch(...parseHex(pal.brandHex))[0] : 0)) <
+      Math.abs(a.L - (parseHex(pal.brandHex) ? rgbToOklch(...parseHex(pal.brandHex))[0] : 0)) ? r : a, rows[0]);
+    $('bpNote').textContent = S.version === 'v2'
+      ? 'hue kept · nearest step ' + nearest.key
+      : 'nearest step ' + nearest.key;
+  } else bp.hidden = true;
+
+
+  $('barRow').hidden = S.version !== 'v2';
+  $('lightDelta').closest('.slider-row').hidden = S.version === 'v2';
+
+  /* --- controls that only apply to one version --- */
+  $('barRow').hidden = S.version !== 'v2';
+  $('lightDelta').closest('.slider-row').hidden = S.version === 'v2';
+
+  renderOut(rows);
+  save();
+}
+
+/** What a swatch click puts on the clipboard, per the chosen copy format. */
+function copyText(r){
+  const rgb = 'rgb(' + r.rgb255.join(', ') + ')';
+  if (S.copyFmt === 'hex')   return r.hex;
+  if (S.copyFmt === 'rgb')   return rgb;
+  if (S.copyFmt === 'oklch') return r.oklch;
+  return r.hex + '\n' + rgb + '\n' + r.oklch;
+}
+
+function lcTag(v){
+  const a = Math.abs(v), t = (v >= 0 ? '+' : '') + Math.round(v);
+  const cls = a >= 75 ? 'ok' : a >= 60 ? 'mid' : 'no';
+  return '<span class="tag ' + cls + '">' + t + '</span>';
+}
+function wcagTag(v, limit){
+  const t = v.toFixed(2) + ':1';
+  const cls = v >= limit ? 'ok' : v >= 3 ? 'mid' : 'no';
+  return '<span class="tag ' + cls + '">' + t + '</span>';
+}
+
+/* ============================================================
+   7. EXPORT FORMATS
+   ============================================================ */
+let fmt = 'json';
+
+function allData(){
+  return S.palettes.map(p => ({ pal:p, rows:buildRamp(p) }));
+}
+
+function renderOut(){
+  const data = allData();
+  let text = '';
+
+  if (fmt === 'json'){
+    const o = {
+      meta: {
+        space:'oklch',
+        gamut:'srgb',
+        displayP3:false,
+        steps:stepLabels(S.steps).length,
+        chromaPercent:S.chromaPct,
+        lightnessSpread:S.delta,
+        hueShift:S.hueShift,
+        customCheck:{ color:S.custom, role:S.customRole },
+        generatedBy:'Ramp Studio'
+      },
+      palettes:{}
+    };
+    const cRgb = parseHex(S.custom) ? to255(parseHex(S.custom)) : [247,247,245];
+    const cText = S.customRole === 'text';
+    data.forEach(({pal, rows}) => {
+      // seedLightness makes this format losslessly re-importable; the compact
+      // format can only be recovered to within 1/255 per channel from its hex.
+      const p = { hue: round(pal.hue,3), seedLightness: round(pal.seedL,5), shades:{} };
+      rows.forEach(r => {
+        p.shades[r.key] = {
+          oklch:r.oklch,
+          hex:r.hex,
+          rgb:'rgb(' + r.rgb255.join(', ') + ')',
+          l:round(r.L,3), c:round(r.C,3), h:round(r.H,3),
+          apcaOnWhite:round(r.lcW,1),
+          apcaOnBlack:round(r.lcB,1),
+          apcaOnCustom:round(cText ? apca(cRgb, r.rgb255) : apca(r.rgb255, cRgb), 1),
+          wcagOnWhite:round(r.wW,2),
+          wcagOnBlack:round(r.wB,2),
+          wcagOnCustom:round(wcag(cRgb, r.rgb255), 2),
+          bestText:r.best,
+          inSrgb:r.inGamut
+        };
+      });
+      o.palettes[pal.name] = p;
+    });
+    text = JSON.stringify(o, null, 2);
+  }
+
+  else if (fmt === 'compact'){
+    const o = {};
+    data.forEach(({pal, rows}) => {
+      o[pal.name] = {};
+      rows.forEach(r => { o[pal.name][r.key] = r.hex; });
+    });
+    text = JSON.stringify(o, null, 2);
+  }
+
+  else if (fmt === 'css'){
+    const L = [':root{'];
+    data.forEach(({pal, rows}) => {
+      L.push('  /* ' + pal.name + ' — hue ' + round(pal.hue,1) + '°, sRGB-safe */');
+      rows.forEach(r => L.push('  --' + pal.name + '-' + r.key + ': ' + r.oklch + ';'));
+    });
+    L.push('}');
+    L.push('');
+    L.push('/* Fallback for browsers without oklch() — ~4% of traffic. */');
+    L.push('@supports not (color: oklch(0 0 0)){');
+    L.push('  :root{');
+    data.forEach(({pal, rows}) => {
+      rows.forEach(r => L.push('    --' + pal.name + '-' + r.key + ': ' + r.hex + ';'));
+    });
+    L.push('  }');
+    L.push('}');
+    text = L.join('\n');
+  }
+
+  else if (fmt === 'tw'){
+    const L = ['@theme {'];
+    data.forEach(({pal, rows}) => {
+      L.push('  /* ' + pal.name + ' */');
+      rows.forEach(r => L.push('  --color-' + pal.name + '-' + r.key + ': ' + r.oklch + ';'));
+      L.push('');
+    });
+    if (L[L.length-1] === '') L.pop();
+    L.push('}');
+    text = L.join('\n');
+  }
+
+  else if (fmt === 'figma'){
+    const o = {};
+    data.forEach(({pal, rows}) => {
+      o[pal.name] = {};
+      rows.forEach(r => {
+        o[pal.name][r.key] = { $type:'color', $value:r.hex,
+          $description:r.oklch + ' · best text ' + (r.best === '#ffffff' ? 'white' : 'black') };
+      });
+    });
+    text = JSON.stringify(o, null, 2);
+  }
+
+  $('out').value = text;
+}
+
+/* ============================================================
+   8. IMPORT
+   ============================================================ */
+function importJson(){
+  const msg = $('importMsg');
+  let raw;
+  try { raw = JSON.parse($('inbox').value); }
+  catch(e){ msg.textContent = 'That is not valid JSON — check for a trailing comma or a missing brace.'; return; }
+
+  const src = raw && raw.palettes ? raw.palettes : raw;
+  if (!src || typeof src !== 'object'){ msg.textContent = 'No palettes found in that JSON.'; return; }
+
+  if (raw.meta){
+    if (raw.meta.steps) S.steps = Math.min(50, Math.max(2, +raw.meta.steps || 11));
+    if (raw.meta.chromaPercent != null) S.chromaPct = Math.min(100, Math.max(0, +raw.meta.chromaPercent));
+    if (raw.meta.lightnessSpread != null) S.delta = Math.min(0.45, Math.max(0.10, +raw.meta.lightnessSpread));
+    if (raw.meta.hueShift != null) S.hueShift = Math.min(40, Math.max(-40, +raw.meta.hueShift));
+  }
+
+  const next = [];
+  let recoveredSteps = 0, recoveredDelta = null, recoveredPct = null;
+
+  for (const name of Object.keys(src)){
+    const entry = src[name];
+    const shades = entry && entry.shades ? entry.shades : entry;
+    if (!shades || typeof shades !== 'object') continue;
+
+    const keys = Object.keys(shades).map(Number).filter(k => !isNaN(k)).sort((a,b) => a-b);
+    if (!keys.length) continue;
+
+    // Read every shade, so the ladder can be recovered from its real endpoints.
+    // Seeding from the middle shade alone loses the ramp whenever lightness was
+    // clamped at 0.05/0.95, which shifts the ladder's midpoint away from the seed.
+    const read = [];
+    for (const k of keys){
+      const v = shades[k];
+      const rgb = parseHex(typeof v === 'string' ? v : (v && (v.hex || v.$value)));
+      if (rgb) read.push(rgbToOklch(rgb[0], rgb[1], rgb[2]));
+    }
+    if (!read.length) continue;
+
+    const Ls = read.map(x => x[0]);
+    const maxL = Math.max(...Ls), minL = Math.min(...Ls);
+    const seedL = (maxL + minL) / 2;
+
+    // hue from the most chromatic shade — near-grey ends carry an unstable hue
+    const vivid = read.reduce((a, b) => b[1] > a[1] ? b : a);
+    const hue = (entry && entry.hue != null) ? +entry.hue : vivid[2];
+
+    // chroma % recovered as a fraction of that shade's own gamut maximum
+    const mc = maxChroma(vivid[0], hue);
+    if (mc > 0.0005 && recoveredPct === null){
+      recoveredPct = Math.min(100, round((vivid[1] / mc) * 100, 1));
+    }
+    if (recoveredDelta === null && read.length > 1){
+      recoveredDelta = Math.min(0.45, Math.max(0.10, (maxL - minL) / 2));
+    }
+    recoveredSteps = Math.max(recoveredSteps, read.length);
+
+    const exact = entry && entry.seedLightness != null ? +entry.seedLightness : null;
+    next.push({
+      name: String(name).slice(0,32),
+      hue,
+      seedL: (exact !== null && exact >= 0.05 && exact <= 0.95) ? exact : seedL
+    });
+  }
+
+  // an explicit meta block wins; otherwise use what the shades themselves imply
+  if (!raw.meta || raw.meta.steps == null){
+    if (recoveredSteps >= 2) S.steps = Math.min(50, recoveredSteps);
+  }
+  if ((!raw.meta || raw.meta.lightnessSpread == null) && recoveredDelta !== null) S.delta = recoveredDelta;
+  if ((!raw.meta || raw.meta.chromaPercent == null) && recoveredPct !== null) S.chromaPct = recoveredPct;
+
+  if (!next.length){ msg.textContent = 'Found no readable hex values in that JSON.'; return; }
+  S.palettes = next;
+  S.active = 0;
+  msg.textContent = 'Loaded ' + next.length + (next.length === 1 ? ' palette.' : ' palettes.');
+  syncControls();
+  render();
+}
+
+/* ============================================================
+   9. CONTROLS
+   ============================================================ */
+function applyScale(){
+  document.documentElement.style.setProperty('--scale', S.uiScale);
+  document.querySelectorAll('#uiScale button').forEach(b =>
+    b.setAttribute('aria-pressed', String(+b.dataset.sc === S.uiScale)));
+}
+
+function syncControls(){
+  const pal = active();
+  const rgb = oklchToRgb(pal.seedL, maxChroma(pal.seedL, pal.hue) * (S.chromaPct/100), pal.hue);
+  const hex = hexOf(to255(rgb));
+  $('seedPicker').value = hex;
+  $('seedHex').value = hex;
+  $('stepCount').value = S.steps;
+  $('chromaPct').value = S.chromaPct;
+  $('chromaPctVal').textContent = S.chromaPct;
+  $('lightDelta').value = S.delta;
+  $('lightDeltaVal').textContent = S.delta.toFixed(2);
+  $('hueTune').value = pal.hue;
+  $('hueVal').textContent = round(pal.hue,1);
+  $('hueShift').value = S.hueShift;
+  $('hueShiftVal').textContent = S.hueShift;
+  $('aaaMode').checked = S.aaa;
+  applyScale();
+  $('customPick').value = S.custom;
+  $('customHex').value = S.custom;
+  $('customRole').value = S.customRole;
+  document.querySelectorAll('#verSeg button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.v === S.version)));
+  document.querySelectorAll('#barRow button[data-bar]').forEach(b =>
+    b.setAttribute('aria-pressed', String(+b.dataset.bar === S.bar)));
+  document.querySelectorAll('#copyFmt button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.cf === S.copyFmt)));
+  document.querySelectorAll('.seg button[data-steps]').forEach(b =>
+    b.setAttribute('aria-pressed', String(+b.dataset.steps === S.steps)));
+}
+
+function setSeedFromHex(str){
+  const rgb = parseHex(str);
+  if (!rgb) return false;
+  active().brandHex = hexOf(to255(rgb));
+  const [L, C, H] = rgbToOklch(rgb[0], rgb[1], rgb[2]);
+  const pal = active();
+  pal.seedL = Math.min(0.95, Math.max(0.05, L));
+  pal.hue = H;
+  const mc = maxChroma(pal.seedL, pal.hue);
+  if (mc > 0.0005) S.chromaPct = Math.round(Math.min(100, (C / mc) * 100));
+  return true;
+}
+
+/* toast + clipboard */
+let toastTimer;
+function toast(m){
+  const t = $('toast');
+  t.textContent = m;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+}
+function copy(text, msg){
+  const done = () => toast(msg || 'Copied');
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, () => fallback(text, done));
+  } else fallback(text, done);
+}
+function fallback(text, done){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); }
+  catch(e){ toast('Press Ctrl+C to copy'); }
+  document.body.removeChild(ta);
+}
+
+/* ---- wiring ---- */
+$('seedPicker').addEventListener('input', e => {
+  if (setSeedFromHex(e.target.value)){ syncControls(); render(); }
+});
+$('seedHex').addEventListener('change', e => {
+  if (setSeedFromHex(e.target.value)){ syncControls(); render(); }
+  else { toast('Not a valid hex colour'); syncControls(); }
+});
+$('randomBtn').addEventListener('click', () => {
+  const pal = active();
+  pal.hue = Math.random() * 360;
+  // land on a lightness that actually carries chroma at this hue, so a random
+  // pick never opens on a warning it did not deserve
+  pal.seedL = S.version === 'v2'
+    ? (anchorFor(pal.hue, S.bar) || { L:0.6 }).L
+    : hueCeiling(pal.hue).L;
+  S.chromaPct = 100;
+  pal.brandHex = hexOf(to255(oklchToRgb(pal.seedL, maxChroma(pal.seedL, pal.hue), pal.hue)));
+  syncControls(); render();
+  toast('Random hue ' + Math.round(pal.hue) + '° — inside the gamut');
+});
+
+/* one click to the best settings for the current hue */
+$('optimiseBtn').addEventListener('click', () => {
+  const pal = active();
+  if (S.version === 'v2'){
+    const a = anchorFor(pal.hue, S.bar);
+    if (a){ pal.seedL = a.L; S.chromaPct = 100; }
+  } else {
+    const c = hueCeiling(pal.hue);
+    pal.seedL = c.L;
+    S.chromaPct = 100;
+    const ends = Math.min(0.95 - c.L, c.L - 0.05);
+    S.delta = Math.max(0.10, Math.min(0.45, ends));
+  }
+  syncControls(); render();
+  toast('Optimised for hue ' + Math.round(pal.hue) + '°');
+});
+
+/* generator version */
+$('verSeg').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  S.version = b.dataset.v;
+  syncControls(); render();
+  toast(S.version === 'v2' ? 'V2 — 500 anchored, AAA guaranteed' : 'V1 — original generator');
+});
+
+/* contrast bar for the anchor */
+$('barRow').addEventListener('click', e => {
+  const b = e.target.closest('button[data-bar]');
+  if (!b) return;
+  S.bar = +b.dataset.bar;
+  syncControls(); render();
+});
+
+$('renameBtn').addEventListener('click', () => {
+  const pal = active();
+  const n = prompt('Palette name (used as the JSON key and the CSS variable prefix):', pal.name);
+  if (n && n.trim()){
+    pal.name = n.trim().replace(/\s+/g, '-').slice(0, 32);
+    syncControls(); render();
+  }
+});
+document.querySelectorAll('.seg button[data-steps]').forEach(b => {
+  b.addEventListener('click', () => { S.steps = +b.dataset.steps; syncControls(); render(); });
+});
+$('stepCount').addEventListener('input', e => {
+  const v = Math.min(50, Math.max(2, parseInt(e.target.value, 10) || 11));
+  S.steps = v;
+  document.querySelectorAll('.seg button[data-steps]').forEach(b =>
+    b.setAttribute('aria-pressed', String(+b.dataset.steps === v)));
+  render();
+});
+
+$('uiScale').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  S.uiScale = +b.dataset.sc;
+  applyScale(); save();
+  toast('Display size ' + Math.round(S.uiScale*100) + '%');
+});
+
+/* copy-format choice */
+$('copyFmt').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  S.copyFmt = b.dataset.cf;
+  syncControls(); render();
+});
+
+/* click (or Enter) any value cell to copy just that value */
+$('tbody').addEventListener('click', e => {
+  const td = e.target.closest('td.copyable');
+  if (td) copy(td.dataset.copy, 'Copied ' + td.dataset.copy);
+});
+$('tbody').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const td = e.target.closest('td.copyable');
+  if (td){ e.preventDefault(); copy(td.dataset.copy, 'Copied ' + td.dataset.copy); }
+});
+
+/* custom contrast target */
+$('customPick').addEventListener('input', e => {
+  S.custom = e.target.value; $('customHex').value = e.target.value; render();
+});
+$('customHex').addEventListener('change', e => {
+  const rgb = parseHex(e.target.value);
+  if (!rgb){ toast('Not a valid hex colour'); syncControls(); return; }
+  S.custom = hexOf(to255(rgb));
+  syncControls(); render();
+});
+$('customRole').addEventListener('change', e => { S.customRole = e.target.value; render(); });
+$('chromaPct').addEventListener('input', e => {
+  S.chromaPct = +e.target.value;
+  $('chromaPctVal').textContent = S.chromaPct;
+  render();
+});
+$('lightDelta').addEventListener('input', e => {
+  S.delta = +e.target.value;
+  $('lightDeltaVal').textContent = S.delta.toFixed(2);
+  render();
+});
+$('hueTune').addEventListener('input', e => {
+  active().hue = +e.target.value;
+  $('hueVal').textContent = round(+e.target.value, 1);
+  render();
+});
+$('hueShift').addEventListener('input', e => {
+  S.hueShift = +e.target.value;
+  $('hueShiftVal').textContent = S.hueShift;
+  render();
+});
+$('aaaMode').addEventListener('change', e => { S.aaa = e.target.checked; render(); });
+
+$('addPal').addEventListener('click', () => {
+  const pal = active();
+  S.palettes.push({
+    name: 'palette-' + (S.palettes.length + 1),
+    hue: (pal.hue + 137.5) % 360,   // golden-angle step keeps new hues well separated
+    seedL: pal.seedL
+  });
+  S.active = S.palettes.length - 1;
+  syncControls(); render();
+});
+$('delPal').addEventListener('click', () => {
+  if (S.palettes.length === 1){ toast('Keep at least one palette'); return; }
+  S.palettes.splice(S.active, 1);
+  S.active = Math.max(0, S.active - 1);
+  syncControls(); render();
+});
+
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  fmt = b.dataset.fmt;
+  document.querySelectorAll('#tabs button').forEach(x =>
+    x.setAttribute('aria-selected', String(x === b)));
+  renderOut();
+});
+$('copyOut').addEventListener('click', () => {
+  const names = { json:'JSON', compact:'compact JSON', css:'CSS variables', tw:'Tailwind theme', figma:'Figma tokens' };
+  copy($('out').value, names[fmt] + ' copied');
+});
+$('copyRow').addEventListener('click', () => {
+  const rows = buildRamp(active());
+  const o = {};
+  rows.forEach(r => { o[r.key] = r.hex; });
+  copy(JSON.stringify({ [active().name]: o }, null, 2), active().name + ' copied as JSON');
+});
+$('importBtn').addEventListener('click', importJson);
+$('resetBtn').addEventListener('click', () => {
+  S = structuredClone(DEFAULTS);
+  $('importMsg').textContent = '';
+  $('inbox').value = '';
+  syncControls(); render();
+});
+
+syncControls();
+render();
+})();
+</script>
